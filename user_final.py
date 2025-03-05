@@ -19,14 +19,24 @@ def username_exists(username):
     response = session.get(f"{DHIS2_URL}/api/users?filter=username:eq:{username}&fields=id")
     if response.status_code == 200:
         data = response.json()
-        return len(data["users"]) > 0  # Returns True if username already exists
+        return len(data["users"]) > 0  ## Returns True if username already exists
     return False
 
-# Function to generate a unique username
+## Function to generate a unique username
+"""
 def generate_username(first_name, last_name):
     base_username = f"{first_name[0].lower()}{last_name.lower()}"  # First letter + last name
     if username_exists(base_username):
         return f"{first_name.lower()}{last_name.lower()}"  # Full first name + last name
+    return base_username
+"""
+def generate_username(first_name, last_name):
+    base_username = f"{first_name[0].lower()}{last_name.lower()}"  ## First letter + last name
+    if username_exists(base_username):
+        alternative_username = f"{first_name.lower()}{last_name.lower()}"  ## Full first + last name
+        if username_exists(alternative_username):
+            return f"{alternative_username}1"  ## Append "1" if full name format exists
+        return alternative_username
     return base_username
 
 ## Generating password
@@ -66,6 +76,7 @@ def get_user_group_id(group_name):
 
 ## Reading from the Excel file
 excel_file = r"C:\Users\ALNAFE ENOCK CHISATI\Documents\LETS CODE!\DHIS2-SCRIPTS\final_users.xlsx"
+
 df = pd.read_excel(excel_file)
 
 ## Iterate over each row in the Excel file
@@ -73,7 +84,7 @@ for index, row in df.iterrows():
     first_name = row["firstName"].strip()
     last_name = row["surname"].strip()
     username = generate_username(first_name, last_name)  ## Generating unique username
-    password = generate_password(first_name, last_name)  # Generating password in the desired format
+    password = generate_password(first_name, last_name)  ## Generating password in the desired format
 
     new_user = {
         "firstName": first_name,
