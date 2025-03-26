@@ -1,17 +1,19 @@
 import requests
 import pandas as pd
 
-# DHIS2 Credentials
+# DHIS2 User Credentials
 DHIS2_BASE_URL = "https://ccdev.org/chistest"
-USERNAME = "achisati"
-PASSWORD = "Achisati@2023"
+USERNAME = input("Write your username: ")
+PASSWORD = input("Write your password: ")
 
-# Set up a session for authentication
+# Setting up a session for authentication
 session = requests.Session()
 session.auth = (USERNAME, PASSWORD)
-session.headers.update({"Content-Type": "application/json"})
+session.headers.update({"Content-Type": "application/json"}) 
 
-# Step 1: Get Level 3 Org Unit ID by Name
+district_name = input("Write your district name: ")
+
+# Geting Level 3 Org (District) Unit ID by Name
 def get_level_3_org_unit_id_by_name(level_3_name):
     url = f"{DHIS2_BASE_URL}/api/organisationUnits.json"
     params = {
@@ -20,20 +22,20 @@ def get_level_3_org_unit_id_by_name(level_3_name):
         "paging": "false"
     }
     
-    response = requests.get(url, auth=(USERNAME, PASSWORD), params=params)
+    message = requests.get(url, auth=(USERNAME, PASSWORD), params=params)
 
-    if response.status_code == 200:
-        data = response.json()
+    if message.status_code == 200:
+        data = message.json()
         if data["organisationUnits"]:
             return data["organisationUnits"][0]["id"]  # Return the ID of the first matching level 3 org unit
         else:
             print(f"No level 3 org unit found with the name '{level_3_name}'.")
             return None
     else:
-        print(f"Error: Failed to fetch level 3 org unit with status code {response.status_code}")
+        print(f"Error: Failed to fetch level 3 org unit with status code {message.status_code}")
         return None
 
-# Step 2: Fetch all child org units under a parent (Level 4, Level 5, etc.)
+# Fetching all child org units under a parent (district) (Level 4, Level 5)
 def get_all_child_org_units(parent_id):
     url = f"{DHIS2_BASE_URL}/api/organisationUnits.json"
     params = {
@@ -42,10 +44,10 @@ def get_all_child_org_units(parent_id):
         "paging": "false"
     }
 
-    response = requests.get(url, auth=(USERNAME, PASSWORD), params=params)
+    message = requests.get(url, auth=(USERNAME, PASSWORD), params=params)
 
-    if response.status_code == 200:
-        data = response.json()
+    if message.status_code == 200:
+        data = message.json()
         if data.get("organisationUnits"):
             return data["organisationUnits"]
         else:
@@ -54,7 +56,7 @@ def get_all_child_org_units(parent_id):
         print(f"Error: Failed to fetch org units for parent ID {parent_id}")
         return []
 
-# Step 3: Recursively fetch all level 5 org units under a given parent
+# Recursively fetching all level 5 org units (Catcment Area) under a given parent
 def get_level_5_org_units(parent_id):
     level_5_org_units = []
     
@@ -71,22 +73,22 @@ def get_level_5_org_units(parent_id):
     
     return level_5_org_units
 
-# Step 4: Fetch all level 5 org units under a level 3 org unit by name
+# Fetching all level 5 org units under a level 3 org unit by name
 def fetch_level_5_org_units_by_level_3_name(level_3_name):
-    # Step 1: Get the ID of the level 3 org unit by its name
-    print(f"Fetching level 3 org unit ID for {level_3_name}...")
+    # Step Get the ID of the level 3 org unit by its name
+    print(f"System is Fetching Level 5 org unit ID for {level_3_name} \nPlease Wait...")
     level_3_id = get_level_3_org_unit_id_by_name(level_3_name)
     
     if not level_3_id:
         return []  # If the level 3 org unit was not found, return an empty list
     
-    # Step 2: Recursively get all level 5 org units under the level 3 org unit
+    # Recursively get all level 5 org units under the level 3 org unit
     level_5_org_units = get_level_5_org_units(level_3_id)
     
     return level_5_org_units
 
-# Step 5: Save the org units to an Excel file
-def save_org_units_to_excel(org_units, filename="org_units_Chitipa.xlsx"):
+# Save the org units to an Excel file
+def save_org_units_to_excel(org_units, filename=f"{district_name}_CA.xlsx"):
     # Convert the list of org units to a DataFrame
     df = pd.DataFrame(org_units)
 
@@ -94,8 +96,7 @@ def save_org_units_to_excel(org_units, filename="org_units_Chitipa.xlsx"):
     df.to_excel(filename, index=False)
     print(f"Org units saved to {filename}")
 
-# Example Usage:
-level_3_name = "Chitipa-DHO"  # Replace with the name of the level 3 org unit
+level_3_name = f"{district_name}-DHO"  # Give the name of the level 3 org unit (District)
 level_5_org_units = fetch_level_5_org_units_by_level_3_name(level_3_name)
 
 if level_5_org_units:
@@ -103,7 +104,7 @@ if level_5_org_units:
     for unit in level_5_org_units:
         print(f"ID: {unit['id']}, Name: {unit['name']}, Level: {unit['level']}")
     
-    # Save the org units to an Excel file
+    # Saving the org units to an Excel file
     save_org_units_to_excel(level_5_org_units)
 else:
     print(f"No level 5 org units found under {level_3_name}.")
