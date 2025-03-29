@@ -1,35 +1,20 @@
-import os
-import requests
+import os, getpass, logging, requests
 import pandas as pd
 from datetime import datetime
 from fuzzywuzzy import fuzz, process
 from requests.auth import HTTPBasicAuth
-import logging
-from dotenv import load_dotenv
 
-# Load environment variables from a .env file
-"""
-load_dotenv()
-
-# DHIS2 API Credentials
-DHIS2_BASE_URL = os.getenv("DHIS2_BASE_URL")
-USERNAME = os.getenv("DHIS2_USERNAME")
-PASSWORD = os.getenv("DHIS2_PASSWORD")
-
-# Default user role ID
-DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "K7DkWdiGSbA")"
-"""
 
 # DHIS2 API Credentials
 DHIS2_BASE_URL = "https://ccdev.org/chistest"
-USERNAME = "achisati"
-PASSWORD = "Achisati@2023"
+USERNAME = input("Write your username: ")
+PASSWORD = getpass.getpass("Write your password: ")
 
 district = input("Write the district name: ")
 district_name = f"{district}-DHO"
 
-# Default user role (update with actual role ID)
-DEFAULT_USER_ROLE = "K7DkWdiGSbA"
+# Default user role id and group id
+DEFAULT_USER_ROLE = "K7DkWdiGSbA" # Community Tracker
 
 # Load user and organization unit data from Excel files
 def load_data(user_file=(f"{district}_users.xlsx"), org_unit_file = (f"{district}_CA.xlsx")):
@@ -53,25 +38,8 @@ def username_exists(username):
     return False
 
 # Generate a unique username
-"""
 def generate_username(full_name):
-    name_parts = full_name.split()
-    if len(name_parts) == 3:
-        base_username = f"{name_parts[0][0].lowe()}{name_parts[1][0].lower()}{name_parts[2].lower()}"
-    else:
-        base_username = f"{name_parts[0][0].lower()}{name_parts[-1].lower()}"
-
-    if username_exists(base_username):
-        count = 1
-        new_username = f"{base_username}{count}"
-        while username_exists(new_username):
-            count += 1
-            new_username = f"{base_username}{count}"
-        return new_username
-    return base_username
-"""
-def generate_username(full_name):
-    name_parts = full_name.split()
+    name_parts = full_name.split() #Splitting the Full name
     if len(name_parts) == 3:
         base_username = f"{name_parts[0][0].lower()}{name_parts[2].lower()}"
         if username_exists(base_username):
@@ -107,20 +75,15 @@ def generate_password(full_name):
     current_year = datetime.now().year
     return f"{first_letter}{last_name}@{current_year}"
 
-# Find the best matching organization unit using fuzzy matching
-"""
-def find_best_match(org_unit_name, org_units):
-    match, score = process.extractOne(org_unit_name, org_units)
-    return match if score > 80 else None
-"""
+# Findinng the best matching organization unit using fuzzy matching
+# Partial_ration, check substrings.
 def find_best_match(org_unit_name, org_units):
     best_match, score = process.extractOne(org_unit_name, org_units, scorer=fuzz.partial_ratio)
     if score < 80:
         raise logging.error(f"No suitable match found for '{org_unit_name}'. Best match: '{best_match}' with score {score}")
     return best_match
-    #raise error
 
-# Assign organization units and generate usernames and passwords
+# Assigning organization units and generate usernames and passwords
 def assign_org_units(df_users, df_org_units):
     org_unit_names = df_org_units["name"].tolist()
     df_users["assigned_orgUnitName"] = df_users["orgUnitName"].apply(lambda x: find_best_match(x, org_unit_names))
@@ -130,6 +93,8 @@ def assign_org_units(df_users, df_org_units):
     df_users.dropna(subset=["assigned_orgUnit"], inplace=True)
     df_users["username"] = df_users["User Full Name"].apply(generate_username)
     df_users["password"] = df_users["User Full Name"].apply(generate_password)
+    #df_users["userGroup"] = df_users["userGroup"]
+    #df_users["userRole"] = df_users["userRole"]
     return df_users
 
 # Create a user in DHIS2
@@ -142,7 +107,8 @@ def create_user(user):
         "password": user["password"],
         "organisationUnits": [{"id": user["assigned_orgUnit"]}],
         "dataViewOrganisationUnits" : [{"id": user["assigned_orgUnit"]}],
-        "userRoles": [{"id": user.get("userRole", DEFAULT_USER_ROLE)}]
+        "userRoles": [{"id": user.get("userRole")}],
+        "userGroups": [{"id": user.get("userGroup")}]
     }
     if pd.notna(user.get("Email")):
         user_payload["email"] = user["Email"]
@@ -167,7 +133,8 @@ def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx
                 "Phone Number": user.get("Phone Number", ""),
                 "Email": user.get("Email"),
             })
-            print(f"✅ User {user['username']} created successfully.")
+            #print(f"✅ User {user['username']} created successfully.")
+            print(f"✅ User {user['username']} created successfully!, password is {user['password']}")
             
             """
             if created_users:
@@ -180,7 +147,7 @@ def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx
         else:
             error_message = response.json().get("message", "Unknown error")
             print(f"❌ Failed to create user {user['username']}: {error_message}")
-
+    # Saving to Excel file.
     """
     if created_users:
         df_created_users = pd.DataFrame(created_users)
@@ -201,7 +168,7 @@ def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx
             df_created_users.to_excel(output_file, index=False)
         print(f"📂 Created users saved to {output_file}")
 
-# Main execution
+# Main Methord (Execution Poin)
 if __name__ == "__main__":
     df_users, df_org_units = load_data()
     df_users = assign_org_units(df_users, df_org_units)
