@@ -1,28 +1,29 @@
+# Importing requred python models
 import os, getpass, logging, requests
 import pandas as pd
 from datetime import datetime
 from fuzzywuzzy import fuzz, process
 from requests.auth import HTTPBasicAuth
 
-
-# DHIS2 API Credentials
+# DHIS2 Credentials
 DHIS2_BASE_URL = "https://ccdev.org/chistest"
 USERNAME = input("Write your username: ")
 PASSWORD = getpass.getpass("Write your password: ")
 
+# Getting District.
 district = input("Write the district name: ")
 district_name = f"{district}-DHO"
 
 # Default user role id and group id
 DEFAULT_USER_ROLE = "K7DkWdiGSbA" # Community Tracker
 
-# Load user and organization unit data from Excel files
+# Loading user and organization unit data from Excel files
 def load_data(user_file=(f"{district}_users.xlsx"), org_unit_file = (f"{district}_CA.xlsx")):
     df_users = pd.read_excel(user_file)
     df_org_units = pd.read_excel(org_unit_file)
     return df_users, df_org_units
 
-# Check if a username exists in DHIS2
+# Checking if a username already exists in DHIS2
 def username_exists(username):
     response = requests.get(
         f"{DHIS2_BASE_URL}/api/users?filter=username:eq:{username}&fields=id",
@@ -37,7 +38,7 @@ def username_exists(username):
         print(f"❌ Error: Failed to check username existence. Status code: {response.status_code}")
     return False
 
-# Generate a unique username
+# Generating a unique username
 def generate_username(full_name):
     name_parts = full_name.split() #Splitting the Full name
     if len(name_parts) == 3:
@@ -67,7 +68,7 @@ def generate_username(full_name):
             return new_username
     return base_username
 
-# Generate a password
+# Generating a password
 def generate_password(full_name):
     parts = full_name.split()
     first_letter = parts[0][0].upper()
@@ -93,14 +94,13 @@ def assign_org_units(df_users, df_org_units):
     df_users.dropna(subset=["assigned_orgUnit"], inplace=True)
     df_users["username"] = df_users["User Full Name"].apply(generate_username)
     df_users["password"] = df_users["User Full Name"].apply(generate_password)
-    #df_users["userGroup"] = df_users["userGroup"]
-    #df_users["userRole"] = df_users["userRole"]
     return df_users
 
-# Create a user in DHIS2
+# Creating a user in DHIS2
 def create_user(user):
     url = f"{DHIS2_BASE_URL}/api/users"
     user_payload = {
+        # Must have parameters
         "firstName": user["User Full Name"].split()[0],
         "surname": user["User Full Name"].split()[-1],
         "username": user["username"],
@@ -110,6 +110,7 @@ def create_user(user):
         "userRoles": [{"id": user.get("userRole")}],
         "userGroups": [{"id": user.get("userGroup")}]
     }
+    # Optional parameters
     if pd.notna(user.get("Email")):
         user_payload["email"] = user["Email"]
     if pd.notna(user.get("Phone Number")):
@@ -117,7 +118,7 @@ def create_user(user):
     response = requests.post(url, json=user_payload, auth=HTTPBasicAuth(USERNAME, PASSWORD))
     return response
 
-# Send users to DHIS2 and save to Excel
+# Sending users to DHIS2 and saving to an Excel_file
 def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx"):
     created_users = []
     for _, user in df_users.iterrows():
@@ -125,7 +126,6 @@ def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx
         if response.status_code == 201:
             created_users.append({
                 "District Name": district_name,
-                #"Facility" :(f"org_units_{district}.xlsx")["parent[name]"],
                 "Full Name": user["User Full Name"],
                 "Username": user["username"],
                 "Password": user["password"],
@@ -133,32 +133,13 @@ def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx
                 "Phone Number": user.get("Phone Number", ""),
                 "Email": user.get("Email"),
             })
-            #print(f"✅ User {user['username']} created successfully.")
             print(f"✅ User {user['username']} created successfully!, password is {user['password']}")
-            
-            """
-            if created_users:
-                df_created_users = pd.DataFrame(created_users)
-                if not created_users.empty:
-                    df_created_users = pd.concat([created_users, df_created_users]).drop_duplicates().reset_index(drop=True)
-                df_created_users.to_excel(output_file, index=False)
-                print(f"📂 Created users saved to {output_file}")"
-                """
+
         else:
             error_message = response.json().get("message", "Unknown error")
             print(f"❌ Failed to create user {user['username']}: {error_message}")
-    # Saving to Excel file.
-    """
-    if created_users:
-        df_created_users = pd.DataFrame(created_users)
-        if os.path.exists(output_file):
-            with pd.ExcelWriter(output_file, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
-                df_created_users.to_excel(writer, index=False, header=False, startrow=writer.sheets['Sheet1'].max_row)
-        else:
-            df_created_users.to_excel(output_file, index=False)
-        print(f"📂 Created users saved to {output_file}")
-    """
 
+# Saving to Excel file.
     if created_users:
         df_created_users = pd.DataFrame(created_users)
         if os.path.exists(output_file):
