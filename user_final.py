@@ -1,13 +1,14 @@
 ## importing required modules
-import requests
+import requests, getpass
 import json
 import pandas as pd
 from datetime import datetime
 
 ## User credentials for DHIS2 server 
 DHIS2_URL = "https://ccdev.org/chistest"
-USERNAME = "achisati"
-PASSWORD = "Achisati@2023"
+
+USERNAME = input("Write Your user name: ")
+PASSWORD = getpass.getpass("Write you password: ")
 
 ## Setting up an authentication session
 session = requests.Session()

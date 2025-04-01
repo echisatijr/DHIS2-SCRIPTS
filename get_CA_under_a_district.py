@@ -1,10 +1,10 @@
-import requests
+import requests, getpass
 import pandas as pd
 
 # DHIS2 User Credentials
 DHIS2_BASE_URL = "https://ccdev.org/chistest"
 USERNAME = input("Write your username: ")
-PASSWORD = input("Write your password: ")
+PASSWORD = getpass.getpass("Write your password: ")
 
 # Setting up a session for authentication
 session = requests.Session()
