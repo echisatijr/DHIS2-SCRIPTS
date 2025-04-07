@@ -1,29 +1,31 @@
 # DHIS2 Bulk User Creation Script
 
-This script automates the process of creating user accounts on a DHIS2 instance by reading user details from an Excel spreadsheet. It ensures that usernames are unique, assigns appropriate roles and organizational units, and reports the result of each account creation attempt.
+This Python script streamlines the process of bulk user creation in a DHIS2 instance using input data from Excel files. It performs fuzzy matching for organization unit names, generates unique usernames and secure passwords, and assigns default roles and groups.
 
-## 📋 Features
+---
 
-- Generates unique usernames.
-- Generates secure passwords based on the current year.
-- Retrieves organization unit IDs at level 5.
-- Retrieves user group IDs.
-- Creates users via the DHIS2 API.
-- Supports email, phone number, user roles, and user groups.
-- Reads user details from an Excel spreadsheet.
+## Features
 
-## 🔧 Prerequisites
+- Reads user and organization unit data from Excel files
+- Uses fuzzy matching to map user entries to organization units
+- Automatically generates unique usernames
+- Generates passwords in the format: `FirstInitialLastName@Year`
+- Assigns user roles and groups
+- Interacts with the DHIS2 API to create users
+- Saves created users and their credentials to a new Excel file
+
+---
+
+## Requirements
 
 - Python 3.x
-- DHIS2 credentials with user management permissions
 - Required Python modules:
-  - `requests`
-  - `getpass`
   - `pandas`
-  - `openpyxl` (for reading `.xlsx` files)
-- Internet access to reach your DHIS2 server
+  - `requests`
+  - `openpyxl`
+  - `fuzzywuzzy`
 
 Install dependencies using pip:
 
 ```bash
-pip install requests pandas openpyxl
+pip install pandas requests openpyxl fuzzywuzzy
