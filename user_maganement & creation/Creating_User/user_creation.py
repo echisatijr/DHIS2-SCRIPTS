@@ -18,7 +18,7 @@ district_name = f"{district}-DHO"
 DEFAULT_USER_ROLE = "K7DkWdiGSbA" # Community Tracker
 
 # Loading user and organization unit data from Excel files
-def load_data(user_file=(f"{district}_users.xlsx"), org_unit_file = (f"{district}_CA.xlsx")):
+def load_data(user_file=(f"user_maganement & creation\\Creating_User\\{district}_users.xlsx"), org_unit_file = (f"user_maganement & creation\\CA_Pulling\\{district}_CA.xlsx")):
     df_users = pd.read_excel(user_file)
     df_org_units = pd.read_excel(org_unit_file)
     return df_users, df_org_units
