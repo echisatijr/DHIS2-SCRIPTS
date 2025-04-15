@@ -94,6 +94,7 @@ def assign_org_units(df_users, df_org_units):
     df_users.dropna(subset=["assigned_orgUnit"], inplace=True)
     df_users["username"] = df_users["User Full Name"].apply(generate_username)
     df_users["password"] = df_users["User Full Name"].apply(generate_password)
+    df_users["parent"] = df_org_units["parent_name"]
     return df_users
 
 # Creating a user in DHIS2
@@ -125,7 +126,8 @@ def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx
         response = create_user(user)
         if response.status_code == 201:
             created_users.append({
-                "District Name": district_name,
+                #"District Name": district_name,
+                "Facility" : user["parent"],
                 "Full Name": user["User Full Name"],
                 "Username": user["username"],
                 "Password": user["password"],

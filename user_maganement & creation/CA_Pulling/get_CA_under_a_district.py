@@ -35,7 +35,7 @@ def get_level_3_org_unit_id_by_name(level_3_name):
         print(f"Error: Failed to fetch level 3 org unit with status code {message.status_code}")
         return None
 
-# Fetching all child org units under a parent (district) (Level 4, Level 5)
+# Fetching all child org units under a parent (Healthy Facilities) (Level 4)
 def get_all_child_org_units(parent_id):
     url = f"{DHIS2_BASE_URL}/api/organisationUnits.json"
     params = {
@@ -65,8 +65,11 @@ def get_level_5_org_units(parent_id):
     
     for unit in child_org_units:
         if unit["level"] == 5:
-            # If it's a level 5 org unit, add it to the list
-            level_5_org_units.append(unit)
+            # If it's a level 5 org unit, add it to the lis
+            unit_parent = unit.pop('parent')
+            parent_name, parent_id = unit_parent['name'], unit_parent['id']
+            new_unit = {**unit, "parent_name" : parent_name, "parent_id" : parent_id}
+            level_5_org_units.append(new_unit)
         else:
             # If it's not level 5, recursively fetch its children
             level_5_org_units.extend(get_level_5_org_units(unit["id"]))
@@ -88,7 +91,7 @@ def fetch_level_5_org_units_by_level_3_name(level_3_name):
     return level_5_org_units
 
 # Save the org units to an Excel file
-def save_org_units_to_excel(org_units, filename=f"{district_name}_CA.xlsx"):
+def save_org_units_to_excel(org_units, filename= f"user_maganement & creation\\CA_Pulling\\{district_name}_CA.xlsx"):
     # Convert the list of org units to a DataFrame
     df = pd.DataFrame(org_units)
 
