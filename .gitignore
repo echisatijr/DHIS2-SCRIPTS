@@ -1,1 +1,6 @@
 *.xlsx
+*.csv
+
+#IDE files
+.idea
+.venv
