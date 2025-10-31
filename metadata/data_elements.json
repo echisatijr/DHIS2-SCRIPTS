@@ -1,0 +1,44 @@
+{
+  "dataElements": [
+    {
+      "name": "PR MH - Allergy Summary",
+      "shortName": "Allergy Summary",
+      "code": "",
+      "id": "JIVtvozYAVy",
+      "description": "List of recorded allergies",
+      "formName": "Known Allergies",
+      "domainType": "TRACKER",
+      "valueType": "LONG_TEXT",
+      "aggregationType": "NONE",
+      "zeroIsSignificant": false,
+      "categoryCombo": {
+        "id": "CATEGORY_COMBO_UID"
+      },
+      "url": "",
+      "optionSet": null,
+      "commentOptionSet": null,
+      "fieldMask": null,
+      "displayFormName": "Known Allergies"
+    },
+    {
+      "name": "PR MH - Allergy Flag",
+      "shortName": "Allergy Flag",
+      "code": "",
+      "id": "GfYkRGj5zqZ",
+      "description": "Indicates if person has known allergies",
+      "formName": "Person Has Allergies",
+      "domainType": "TRACKER",
+      "valueType": "BOOLEAN",
+      "aggregationType": "NONE",
+      "zeroIsSignificant": false,
+      "categoryCombo": {
+        "id": "CATEGORY_COMBO_UID"
+      },
+      "url": "",
+      "optionSet": null,
+      "commentOptionSet": null,
+      "fieldMask": null,
+      "displayFormName": "Person Has Allergies"
+    }
+  ]
+}
