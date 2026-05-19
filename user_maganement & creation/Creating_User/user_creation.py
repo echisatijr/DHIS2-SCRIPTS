@@ -11,7 +11,7 @@ from urllib3.util.retry import Retry
 # pip install python-Levenshtein
 
 # Load environment variables from a .env file if present
-def load_env_file(path=".env"):
+def load_env_file(path=f"../../.env"):
     if not os.path.exists(path):
         return
     with open(path, "r", encoding="utf-8") as env_file:
@@ -56,14 +56,14 @@ session.mount("https://", adapter)
 session.mount("http://", adapter)
 
 # Loading user and organization unit data from Excel files
-def load_data(user_file=(f"{district}_users.xlsx"), org_unit_file = (f"{district}_CA.xlsx")):
+def load_data(user_file=(f"data/{district}_users.xlsx"), org_unit_file = (f"data/{district}_CA.xlsx")):
     df_users = pd.read_excel(user_file)
     df_org_units = pd.read_excel(org_unit_file)
     return df_users, df_org_units
 
 # Choose the created users file if present
 def find_created_users_file():
-    candidates = [f"{district_name}_created_users.xlsx", "created_users.xlsx"]
+    candidates = [f"data/{district_name}_created_users.xlsx"]
     for path in candidates:
         if os.path.exists(path):
             return path
@@ -221,7 +221,7 @@ def create_user(user):
         return None
 
 # Sending users to DHIS2 and saving to an Excel_file
-def send_users_to_dhis2(df_users, district_name, output_file=f"{district_name}_created_users.xlsx"):
+def send_users_to_dhis2(df_users, district_name, output_file=f"data/{district_name}_created_users.xlsx"):
     created_users = []
     for _, user in df_users.iterrows():
         response = create_user(user)
