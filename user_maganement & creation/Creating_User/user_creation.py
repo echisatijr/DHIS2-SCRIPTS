@@ -3,39 +3,131 @@ import os, getpass, logging, requests
 import pandas as pd
 from datetime import datetime
 from fuzzywuzzy import fuzz, process
+from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
+from urllib3.util.retry import Retry
 
-# DHIS2 Credentials
-DHIS2_BASE_URL = "https://ccdev.org/chistest"
-USERNAME = input("Write your username: ")
-PASSWORD = getpass.getpass("Write your password: ")
+# Optional speed optimization for fuzzy matching:
+# pip install python-Levenshtein
+
+# Load environment variables from a .env file if present
+def load_env_file(path=".env"):
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as env_file:
+        for line in env_file:
+            if not line.strip() or line.strip().startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, value = line.strip().split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+load_env_file()
+
+DHIS2_BASE_URL = os.getenv("DHIS2_BASE_URL", "https://ccdev.org/chistest")
+USERNAME = os.getenv("DHIS2_USERNAME")
+PASSWORD = os.getenv("DHIS2_PASSWORD")
+
+if not USERNAME:
+    USERNAME = input("Write your username: ")
+if not PASSWORD:
+    PASSWORD = getpass.getpass("Write your password: ")
 
 # Getting District.
 district = input("Write the district name: ")
+# First letter to be capital and the rest to be small letter.
 district_name = f"{district}-DHO"
 
 # Default user role id and group id
 DEFAULT_USER_ROLE = "K7DkWdiGSbA" # Community Tracker
 
+# Configure a shared requests session with retry support
+session = requests.Session()
+retry_strategy = Retry(
+    total=3,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["HEAD", "GET", "OPTIONS", "POST"],
+    raise_on_status=False
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("https://", adapter)
+session.mount("http://", adapter)
+
 # Loading user and organization unit data from Excel files
-def load_data(user_file=(f"user_maganement & creation\\Creating_User\\{district}_users.xlsx"), org_unit_file = (f"user_maganement & creation\\CA_Pulling\\{district}_CA.xlsx")):
+def load_data(user_file=(f"{district}_users.xlsx"), org_unit_file = (f"{district}_CA.xlsx")):
     df_users = pd.read_excel(user_file)
     df_org_units = pd.read_excel(org_unit_file)
     return df_users, df_org_units
 
+# Choose the created users file if present
+def find_created_users_file():
+    candidates = [f"{district_name}_created_users.xlsx", "created_users.xlsx"]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+# Load previously created users from Excel for offline duplicate checking
+def load_created_users():
+    created_users_file = find_created_users_file()
+    if not created_users_file:
+        logging.info("No created users file found. Skipping offline duplicate check.")
+        return pd.DataFrame()
+    try:
+        df_created = pd.read_excel(created_users_file)
+        logging.info(f"Loaded created users from {created_users_file}")
+        return df_created
+    except Exception as exc:
+        logging.warning(f"Unable to load created users file '{created_users_file}': {exc}")
+        return pd.DataFrame()
+
+# Filter out users whose full name already exists in the created users list
+def filter_already_created_users(df_users, df_created_users):
+    print("\n🔎 Checking for already created users by full name...")
+    if df_created_users.empty:
+        print("✅ No created users file available, processing all users.")
+        return df_users
+
+    if "Full Name" not in df_created_users.columns:
+        print("⚠️ Created users file does not contain a 'Full Name' column. Skipping offline duplicate check.")
+        return df_users
+
+    created_full_names = set(df_created_users["Full Name"].astype(str).str.strip())
+    df_users["User Full Name"] = df_users["User Full Name"].astype(str).str.strip()
+
+    duplicate_mask = df_users["User Full Name"].isin(created_full_names)
+    skipped_users = df_users.loc[duplicate_mask, "User Full Name"].tolist()
+    if skipped_users:
+        print(f"⏭️ Skipping {len(skipped_users)} already created user(s):")
+        for full_name in skipped_users:
+            print(f"   - {full_name}")
+    else:
+        print("✅ No matching created users found. Continuing.")
+
+    df_users_filtered = df_users.loc[~duplicate_mask].copy()
+    if df_users_filtered.empty:
+        print("✅ All users in the input list have already been created.")
+    return df_users_filtered
+
 # Checking if a username already exists in DHIS2
 def username_exists(username):
-    response = requests.get(
-        f"{DHIS2_BASE_URL}/api/users?filter=username:eq:{username}&fields=id",
-        auth=HTTPBasicAuth(USERNAME, PASSWORD)
-    )
-    if response.status_code == 200:
-        try:
-            return len(response.json().get("users", [])) > 0
-        except requests.exceptions.JSONDecodeError:
-            print("❌ Error: DHIS2 response is not valid JSON.")
-    else:
-        print(f"❌ Error: Failed to check username existence. Status code: {response.status_code}")
+    try:
+        response = session.get(
+            f"{DHIS2_BASE_URL}/api/users?filter=username:eq:{username}&fields=id",
+            auth=HTTPBasicAuth(USERNAME, PASSWORD),
+            timeout=15
+        )
+        if response.status_code == 200:
+            try:
+                return len(response.json().get("users", [])) > 0
+            except requests.exceptions.JSONDecodeError:
+                print("❌ Error: DHIS2 response is not valid JSON.")
+        else:
+            print(f"❌ Error: Failed to check username existence. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as exc:
+        print(f"❌ Network error while checking username '{username}': {exc}")
     return False
 
 # Generating a unique username
@@ -116,29 +208,51 @@ def create_user(user):
         user_payload["email"] = user["Email"]
     if pd.notna(user.get("Phone Number")):
         user_payload["phoneNumber"] = user["Phone Number"]
-    response = requests.post(url, json=user_payload, auth=HTTPBasicAuth(USERNAME, PASSWORD))
-    return response
+    try:
+        response = session.post(
+            url,
+            json=user_payload,
+            auth=HTTPBasicAuth(USERNAME, PASSWORD),
+            timeout=20
+        )
+        return response
+    except requests.exceptions.RequestException as exc:
+        print(f"❌ Network error while creating user '{user['User Full Name']}' ({user['username']}): {exc}")
+        return None
 
 # Sending users to DHIS2 and saving to an Excel_file
-def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx"):
+def send_users_to_dhis2(df_users, district_name, output_file=f"{district_name}_created_users.xlsx"):
     created_users = []
     for _, user in df_users.iterrows():
         response = create_user(user)
+        if response is None:
+            continue
         if response.status_code == 201:
+            try:
+                response_body = response.json()
+            except ValueError:
+                response_body = {}
+
+            created_uid = response_body.get("uid") or response_body.get("response", {}).get("uid")
+
             created_users.append({
                 #"District Name": district_name,
-                "Facility" : user["parent"],
+                "Facility": user["parent"],
                 "Full Name": user["User Full Name"],
                 "Username": user["username"],
                 "Password": user["password"],
+                "UID": created_uid,
                 "Assigned Org Unit": user["assigned_orgUnitName"],
                 "Phone Number": user.get("Phone Number", ""),
                 "Email": user.get("Email"),
             })
-            print(f"✅ User {user['username']} created successfully!, password is {user['password']}")
+            print(f"✅ User {user['username']} created successfully!, password is {user['password']} UID: {created_uid}")
 
         else:
-            error_message = response.json().get("message", "Unknown error")
+            try:
+                error_message = response.json().get("message", "Unknown error")
+            except Exception:
+                error_message = response.text if response is not None else "No response"
             print(f"❌ Failed to create user {user['username']}: {error_message}")
 
 # Saving to Excel file.
@@ -154,5 +268,13 @@ def send_users_to_dhis2(df_users, district_name, output_file="created_users.xlsx
 # Main Methord (Execution Poin)
 if __name__ == "__main__":
     df_users, df_org_units = load_data()
+
+    df_created_users = load_created_users()
+    df_users = filter_already_created_users(df_users, df_created_users)
+
+    if df_users.empty:
+        logging.info("No users left to process after offline duplicate filtering.")
+        exit()
+
     df_users = assign_org_units(df_users, df_org_units)
     send_users_to_dhis2(df_users, district_name)
