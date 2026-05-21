@@ -1,10 +1,31 @@
-import requests, getpass
+import requests, getpass, os
 import pandas as pd
 
+def load_env_file(path=f"../../.env"):
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as env_file:
+        for line in env_file:
+            if not line.strip() or line.strip().startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, value = line.strip().split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+load_env_file()
+
 # DHIS2 User Credentials
-DHIS2_BASE_URL = "https://ccdev.org/chistest"
-USERNAME = input("Write your username: ")
-PASSWORD = getpass.getpass("Write your password: ")
+DHIS2_BASE_URL = os.getenv("DHIS2_BASE_URL_TEST") 
+USERNAME = os.getenv("DHIS2_USERNAME")
+PASSWORD = os.getenv("DHIS2_PASSWORD")
+
+if not DHIS2_BASE_URL:
+    DHIS2_BASE_URL = input("Write the DHIS2 base URL (e.g., https://example.org/dhis): ")
+if not USERNAME:
+    USERNAME = input("Write your username: ")
+if not PASSWORD:
+    PASSWORD = getpass.getpass("Write your password: ")
 
 # Setting up a session for authentication
 session = requests.Session()
