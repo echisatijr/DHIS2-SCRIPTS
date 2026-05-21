@@ -29,6 +29,8 @@ DHIS2_BASE_URL = os.getenv("DHIS2_BASE_URL")
 USERNAME = os.getenv("DHIS2_USERNAME")
 PASSWORD = os.getenv("DHIS2_PASSWORD")
 
+if not DHIS2_BASE_URL:
+    DHIS2_BASE_URL = input("Write the DHIS2 base URL (e.g., https://example.org/dhis): ")
 if not USERNAME:
     USERNAME = input("Write your username: ")
 if not PASSWORD:
