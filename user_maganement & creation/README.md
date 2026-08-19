@@ -7,6 +7,7 @@ This folder contains the scripts used to manage DHIS2 users and organisation uni
 The workflow is split into these main tasks:
 
 - CA Pulling: fetches all catchment-area level 5 organisation units from DHIS2 and saves them to an Excel file.
+- CA Creation: creates new catchment-area organisation units from a file containing parent name, parent UID, org unit name, and org level.
 - Creating User: reads district user data, matches it to CA/facility units, creates DHIS2 users, and exports the created-user report.
 - Deleting User: deletes a fixed list of DHIS2 user IDs.
 - Migrating User: copies users from a source DHIS2 instance to a target DHIS2 instance using a list of usernames.
@@ -15,6 +16,8 @@ The workflow is split into these main tasks:
 
 - ca_pulling/
   - Downloads catchment areas from DHIS2.
+- orgUnits/
+  - Creates catchment area organisation units using a parent-name/parent-UID file.
 - creating_user/
   - Creates new DHIS2 users from a district file.
 - deleting_user/
@@ -48,10 +51,11 @@ DHIS2_PASSWORD=your_password
 ## Typical data flow
 
 1. Pull CA data from DHIS2 for a district.
-2. Prepare the user input Excel file for that district.
-3. Run the user creation script.
-4. Review the created_users output file.
-5. Use migration or deletion scripts only when needed.
+2. If needed, create additional catchment area units using the CA creation workflow.
+3. Prepare the user input Excel file for that district.
+4. Run the user creation script.
+5. Review the created_users output file.
+6. Use migration or deletion scripts only when needed.
 
 ## Common input/output conventions
 
@@ -62,6 +66,24 @@ The scripts use district-based Excel files stored in the data folder. Typical na
 - Balaka_created_users.xlsx
 
 This helps keep each district’s user creation records separate.
+
+### CA creation input format
+
+The CA creation workflow accepts a CSV or Excel file with these columns:
+
+```text
+Parent Name,Parent UID,OrgUnit Name,Level
+```
+
+Example:
+
+```text
+Parent Name,Parent UID,OrgUnit Name,Level
+Tongozala Health Centre,tv21Cm2Q9EP,Guzani CA (Tongozala Health Centre),5
+Chioshya Health Centre,Qk36Nb1QV64,January CA (Chioshya Health Centre),5
+```
+
+This file is used by the CA creation script to create each org unit under the selected parent UID and organisation level.
 
 ---
 
@@ -80,6 +102,21 @@ Expected output columns:
 
 ```text
 name,id,level,parent_name,parent_id
+```
+
+### orgUnits
+Purpose: Create new catchment area organisation units from a file containing parent name, parent UID, org unit name, and level.
+
+Expected input columns:
+
+```text
+Parent Name,Parent UID,OrgUnit Name,Level
+```
+
+Expected output:
+
+```text
+DHIS2 org units created under the specified parent UID and level.
 ```
 
 ### creating_user
