@@ -1,4 +1,5 @@
 *.xlsx
+*.csv
 venv/
 myvenv/
 __pycache__/
