@@ -48,11 +48,12 @@ if not SOURCE_PASSWORD:
 #EXCEL_FILE = (f"../user_data/usernames.xlsx")
 
 
-EXCEL_FILE = "../user_data/usernames.xlsx"
+EXCEL_FILE = "../data/usernamess.xlsx"
 
 DEFAULT_USER_GROUPS = [
-    "OPJ9nY0fsmX",   # Tasking group /main
-    "RHVLhmG812z",   # mchinji HSA /main
+    #"OPJ9nY0fsmX",   # Tasking group /main
+    #"RHVLhmG812z",   # mchinji HSA /main
+    "CaO6Svyo4KX" # Balaka HSA/ main
 ]
 
 # SESSION
@@ -196,7 +197,7 @@ def create_user_in_target(user_data):
         }
 
         response = session.post(
-            f"{TARGET_BASE_URL}/users",
+            f"{TARGET_BASE_URL}/api/users",
             json=payload,
             auth=HTTPBasicAuth(TARGET_USERNAME, TARGET_PASSWORD),
             timeout=30,
@@ -218,7 +219,7 @@ def create_user_in_target(user_data):
 
 # MAIN MIGRATION
 def migrate_users():
-    usernames = load_usernames(EXCEL_FILE)
+    usernames = ["mchinthowa"]  # load_usernames(EXCEL_FILE)
 
     if not usernames:
         print("⚠️ No users to process")
